@@ -1,3 +1,3 @@
-class Utils {
+class GlobalData {
   static bool isDark = true;
 }

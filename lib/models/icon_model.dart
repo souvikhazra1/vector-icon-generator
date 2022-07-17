@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:archive/archive_io.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:http/http.dart' as http;
@@ -35,12 +35,14 @@ class IconSiteModel {
   final String svgPath;
   final String rootPath;
   late List<IconModel> icons;
+  int iconCount = 0;
 
   IconSiteModel({required this.name, required this.key, required this.downloadLink, required this.svgPath, required this.rootPath, this.githubRepo});
 
   Future loadIcons() async {
     if (rootPath.isNotEmpty) {
       try {
+        debugPrint("Loading icons $name from $rootPath");
         Map<String, String> tags = {};
         if (key == "cmd") {
           List<dynamic> metas = jsonDecode(await File("$rootPath/meta.json").readAsString());
@@ -59,6 +61,7 @@ class IconSiteModel {
             tag: tags[fileNameWithoutExt] ?? fileNameWithoutExt,
           );
         }).toList();
+        iconCount = icons.length;
       } catch (e, s) {
         debugPrint(e.toString());
         debugPrintStack(stackTrace: s);
@@ -94,6 +97,8 @@ class IconSiteModel {
           await File(rootPath).delete(recursive: true);
         } catch (_) {}
         final Uri url = await _getDownloadLink();
+        debugPrint("Downloading $name from ${url.toString()}");
+
         final response = await http.readBytes(url);
         final zip = ZipDecoder().decodeBytes(response);
         var idx = 1;
@@ -106,22 +111,39 @@ class IconSiteModel {
             await file.create(recursive: true);
             await file.writeAsBytes(entry.content);
           } else if ((svgPath.isEmpty || fileName.contains("$svgPath/")) && fileName.endsWith(".svg")) {
+            // extract only svg files for zip
             onProgress(DownloadProgressModel((idx + 1) / totalFiles, "Processing $name icons: ${idx + 1}/$totalFiles"));
             try {
-              // extract only svg files for zip
               final svgFileName = "$idx-${fileName.split("/").last}";
+              final svgPath = "$rootPath/svg/$svgFileName";
+              final pngPath = "$rootPath/png/${svgFileName.replaceFirst(".svg", ".png")}";
+
+              /*// validate svg if simplified
+              final document = XmlDocument.parse(utf8.decode(entry.content));
+              var nonPathFound = false;
+              for (final p0 in document.rootElement.childElements) {
+                final elName = p0.name.toString();
+                if (elName != "path" && elName != "title" && elName != "g") {
+                  debugPrint("$name : ${fileName.split("/").last} non-path found ${p0.name.toString()}");
+                  nonPathFound = true;
+                  break;
+                }
+              }
+              if (nonPathFound) {
+                continue;
+              }*/
               // covert svg to png
               final svgDrawableRoot = await svg.fromSvgBytes(entry.content, svgFileName);
-              final picture = svgDrawableRoot.toPicture(size: const Size(Constants.iconSize, Constants.iconSize));
+              final picture = svgDrawableRoot.toPicture(size: const Size(Constants.iconSize, Constants.iconSize), colorFilter: const ColorFilter.mode(Colors.black, BlendMode.srcIn));
               final size = Constants.iconSize.toInt();
               final bytes = await (await picture.toImage(size, size)).toByteData(format: ImageByteFormat.png);
               if (bytes != null) {
-                final pngFile = File("$rootPath/png/${svgFileName.replaceFirst(".svg", ".png")}");
+                final pngFile = File(pngPath);
                 await pngFile.create(recursive: true);
                 await pngFile.writeAsBytes(bytes.buffer.asInt8List());
 
                 // save svg file if png is generated
-                final file = File("$rootPath/svg/$svgFileName");
+                final file = File(svgPath);
                 await file.create(recursive: true);
                 await file.writeAsBytes(entry.content);
 
@@ -169,6 +191,7 @@ class IconStore {
         await site.loadIcons();
         allSites.icons.addAll(site.icons);
       }
+      allSites.iconCount = allSites.icons.length;
 
       iconSites!.insert(0, allSites);
     }

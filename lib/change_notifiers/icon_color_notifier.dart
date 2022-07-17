@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:vector_icon_generator/utils.dart';
+import 'package:vector_icon_generator/utils/global_data.dart';
 
 class IconColorNotifier extends ChangeNotifier {
   Color _iconColor = Colors.white;
 
   Color get iconColor {
-    if (_iconColor == Colors.white && !Utils.isDark) {
+    if (_iconColor == Colors.white && !GlobalData.isDark) {
       _iconColor = Colors.black;
-    } else if (_iconColor == Colors.black && Utils.isDark) {
+    } else if (_iconColor == Colors.black && GlobalData.isDark) {
       _iconColor = Colors.white;
     }
     return _iconColor;
@@ -19,7 +19,7 @@ class IconColorNotifier extends ChangeNotifier {
   }
 
   void resetColor() {
-    _iconColor = Utils.isDark ? Colors.white : Colors.black;
+    _iconColor = GlobalData.isDark ? Colors.white : Colors.black;
     notifyListeners();
   }
 }

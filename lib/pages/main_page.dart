@@ -7,7 +7,7 @@ import 'package:vector_icon_generator/change_notifiers/dark_mode_notifier.dart';
 import 'package:vector_icon_generator/change_notifiers/download_progress_notifier.dart';
 import 'package:vector_icon_generator/change_notifiers/icon_color_notifier.dart';
 import 'package:vector_icon_generator/models/icon_model.dart';
-import 'package:vector_icon_generator/utils.dart';
+import 'package:vector_icon_generator/utils/global_data.dart';
 import 'package:vector_icon_generator/widgets/icon_list.dart';
 
 class MainPage extends StatefulWidget {
@@ -94,7 +94,7 @@ class _MainPageState extends State<MainPage> {
                   final item = _iconSites[index - 1];
                   final isSelected = item == _selected;
                   return ListTile(
-                    title: Text(item.name),
+                    title: Text("${item.name} (${item.iconCount})"),
                     style: ListTileStyle.drawer,
                     selected: isSelected,
                     selectedColor: Theme.of(context).canvasColor,
@@ -169,7 +169,7 @@ class _MainPageState extends State<MainPage> {
               IconButton(onPressed: _reload, icon: Icon(Icons.refresh, color: Theme.of(context).primaryColor)),
               IconButton(
                 onPressed: () => Provider.of<DarkModeNotifier>(context, listen: false).toggle(),
-                icon: Icon(Utils.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: Theme.of(context).primaryColor),
+                icon: Icon(GlobalData.isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined, color: Theme.of(context).primaryColor),
               ),
             ],
           )

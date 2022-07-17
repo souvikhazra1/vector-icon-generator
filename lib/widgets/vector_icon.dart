@@ -15,7 +15,7 @@ class VectorIcon extends StatelessWidget {
 
   static String _fileLocation = "";
   static String _iconSize = "24";
-  static bool _xmlTinted = false;
+  static bool _vectorTinted = false;
 
   final IconModel icon;
 
@@ -25,16 +25,11 @@ class VectorIcon extends StatelessWidget {
 
   Future _copyPngFile(String destPath, Color color) async {
     final content = await icon.svgIconFile.readAsString();
-    final document = XmlDocument.parse(content);
-    for (final p0 in document.findAllElements("path")) {
-      p0.setAttribute("fill", "#${color.value.toRadixString(16).substring(2)}");
-    }
-
-    final svgString = document.toXmlString();
-    final svgDrawableRoot = await svg.fromSvgString(svgString, icon.name);
+    final svgDrawableRoot = await svg.fromSvgString(content, icon.name);
     final iconSize = int.tryParse(_iconSize) ?? 256;
-    final picture = svgDrawableRoot.toPicture(size: Size(iconSize.toDouble(), iconSize.toDouble()));
-    final bytes = await (await picture.toImage(iconSize, iconSize)).toByteData(format: ImageByteFormat.png);
+    final picture = svgDrawableRoot.toPicture(size: Size(iconSize.toDouble(), iconSize.toDouble()), colorFilter: ColorFilter.mode(color, BlendMode.srcIn));
+    final image = await picture.toImage(iconSize, iconSize);
+    final bytes = await image.toByteData(format: ImageByteFormat.png);
     if (bytes != null) {
       final dest = File(destPath);
       await dest.create(recursive: true);
@@ -45,15 +40,19 @@ class VectorIcon extends StatelessWidget {
   }
 
   Future _copySvgFile(String destPath, Color color) async {
-    final dest = File(destPath);
+    if (_vectorTinted) {
+      final dest = File(destPath);
 
-    final content = await icon.svgIconFile.readAsString();
-    final document = XmlDocument.parse(content);
-    for (final p0 in document.findAllElements("path")) {
-      p0.setAttribute("fill", "#${color.value.toRadixString(16).substring(2)}");
+      final content = await icon.svgIconFile.readAsString();
+      final document = XmlDocument.parse(content);
+      for (final p0 in document.findAllElements("path")) {
+        p0.setAttribute("fill", "#${color.value.toRadixString(16).substring(2)}");
+      }
+      await dest.create();
+      await dest.writeAsString(document.toXmlString());
+    } else {
+      await icon.svgIconFile.copy(destPath);
     }
-    await dest.create();
-    await dest.writeAsString(document.toXmlString());
   }
 
   Future _copyXmlFile(String destPath, Color color) async {
@@ -66,7 +65,7 @@ class VectorIcon extends StatelessWidget {
           XmlAttribute(XmlName("pathData", "android"), p0.getAttribute("d") ?? ""),
           XmlAttribute(XmlName("fillColor", "android"), "@android:color/white"),
         ])));
-    vector.rootElement.setAttribute("android:tint", _xmlTinted ? "#${color.value.toRadixString(16).substring(2)}" : "?attr/colorControlNormal");
+    vector.rootElement.setAttribute("android:tint", _vectorTinted ? "#${color.value.toRadixString(16).substring(2)}" : "?attr/colorControlNormal");
     final viewBox = (document.rootElement.getAttribute("viewBox") ?? "0 0 24 24").split(" ");
     if (viewBox.length == 4) {
       vector.rootElement.setAttribute("android:viewportWidth", viewBox[2]);
@@ -134,8 +133,8 @@ class VectorIcon extends StatelessWidget {
                               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                             ),
                           ),
-                          Padding(padding: const EdgeInsets.only(left: 20, right: 5), child: CheckBoxStateful(value: _xmlTinted, onChanged: (value) => _xmlTinted = value)),
-                          const Text("Tinted XML"),
+                          Padding(padding: const EdgeInsets.only(left: 20, right: 5), child: CheckBoxStateful(value: _vectorTinted, onChanged: (value) => _vectorTinted = value)),
+                          const Text("Tinted XML/SVG"),
                         ],
                       )
                     ],
@@ -147,8 +146,9 @@ class VectorIcon extends StatelessWidget {
                       final fileName = _fileNameController.text;
                       final fileLocation = _fileLocationController.text;
                       if (fileLocation.isEmpty || fileName.isEmpty) return;
-                      _copySvgFile("$fileLocation/$fileName.svg", color).catchError((e) {
+                      _copySvgFile("$fileLocation/$fileName.svg", color).catchError((e, s) {
                         debugPrint(e.toString());
+                        debugPrintStack(stackTrace: s);
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to copy, please try again.")));
                       });
                       Navigator.of(context).pop();
@@ -160,8 +160,9 @@ class VectorIcon extends StatelessWidget {
                       final fileName = _fileNameController.text;
                       final fileLocation = _fileLocationController.text;
                       if (fileLocation.isEmpty || fileName.isEmpty) return;
-                      _copyPngFile("$fileLocation/$fileName.png", color).catchError((e) {
+                      _copyPngFile("$fileLocation/$fileName.png", color).catchError((e, s) {
                         debugPrint(e.toString());
+                        debugPrintStack(stackTrace: s);
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to copy, please try again.")));
                       });
                       Navigator.of(context).pop();
@@ -173,13 +174,21 @@ class VectorIcon extends StatelessWidget {
                       final fileName = _fileNameController.text;
                       final fileLocation = _fileLocationController.text;
                       if (fileLocation.isEmpty || fileName.isEmpty) return;
-                      _copyXmlFile("$fileLocation/$fileName.xml", color).catchError((e) {
+                      _copyXmlFile("$fileLocation/$fileName.xml", color).catchError((e, s) {
                         debugPrint(e.toString());
+                        debugPrintStack(stackTrace: s);
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Failed to copy, please try again.")));
                       });
                       Navigator.of(context).pop();
                     },
                     child: const Text("Android XML"),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: icon.iconFile.path));
+                      Navigator.of(context).pop();
+                    },
+                    child: const Text("Copy SVG Path"),
                   ),
                 ],
               );

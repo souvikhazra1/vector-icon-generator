@@ -15,3 +15,6 @@ Tool developed in flutter to export PNG, SVG and Android XML for popular icons.
 ## Screenshots
 ![Screenshot](./screenshots/1.png)
 ![Screenshot](./screenshots/2.png)
+
+## SVG processing notes
+Right now only `path` element and `fill` attribute is processed, in case SVG has anything else tinting SVG and generating Android Vector XML will not work properly.
